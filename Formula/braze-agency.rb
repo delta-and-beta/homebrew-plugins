@@ -75,28 +75,17 @@ class BrazeAgency < Formula
     SH
   end
 
-  def post_install
-    # Register as Claude Code marketplace + install plugin
-    # This requires 'claude' CLI to be installed (brew install claude-code)
-    if which("claude")
-      system "claude", "plugin", "marketplace", "add", "#{share}/braze-agency"
-      system "claude", "plugin", "install", "braze@braze-agency"
-    else
-      opoo "Claude Code CLI not found. Run 'braze-agency register' after installing claude-code."
-    end
-  end
-
   def caveats
     <<~EOS
-      Braze Agency is installed and registered with Claude Code.
+      Braze Agency is installed! One more step to activate:
 
-      Run /reload-plugins inside Claude Code to activate, or restart Claude Code.
-
-      Search from terminal:
-        braze-agency search "query"
-
-      If agents don't appear, run:
         braze-agency register
+
+      This registers the plugin with Claude Code (agents + skills + commands).
+      Then restart Claude Code or run /reload-plugins.
+
+      Search from terminal (works immediately):
+        braze-agency search "query"
     EOS
   end
 

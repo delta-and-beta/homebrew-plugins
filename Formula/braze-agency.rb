@@ -2,7 +2,7 @@ class BrazeAgency < Formula
   desc "Braze specialist agents for Claude Code — 9 agents, 166 skills, 1,304 topics"
   homepage "https://github.com/delta-and-beta/braze-agency"
   url "https://github.com/delta-and-beta/braze-agency/archive/refs/tags/v1.1.0.tar.gz"
-  sha256 "280070dd993d258eadc1cc303da3e6563ba4d61c955d118b973e6caa582f6dee"
+  sha256 "9af4acc6d481536db4dda4c449f30c2c126078d37865b11d5b0ede605bb808cf"
   license "MIT"
 
   depends_on "node"

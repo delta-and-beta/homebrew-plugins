@@ -21,59 +21,62 @@ class BrazeAgency < Formula
                        "skill_index.json", "skill_meta.json",
                        "package.json", "node_modules"
 
-    # Create wrapper script that uses Homebrew's node
+    # Create wrapper script that auto-registers on first run
     node_bin = Formula["node"].opt_bin/"node"
     (bin/"braze-agency").write <<~SH
       #!/bin/bash
-      export NODE_PATH="#{plugin_dir}/node_modules"
-      exec "#{node_bin}" "#{plugin_dir}/bin/cli.mjs" "$@"
+      PLUGIN_DIR="#{plugin_dir}"
+      NODE_BIN="#{node_bin}"
+      SETTINGS="$HOME/.claude/settings.json"
+
+      # Auto-register with Claude Code on first run
+      if [ -f "$SETTINGS" ]; then
+        if ! grep -q "$PLUGIN_DIR" "$SETTINGS" 2>/dev/null; then
+          "$NODE_BIN" -e "
+            const fs = require('fs');
+            const s = JSON.parse(fs.readFileSync('$SETTINGS', 'utf-8'));
+            s.plugins = s.plugins || [];
+            if (!s.plugins.includes('$PLUGIN_DIR')) {
+              s.plugins.push('$PLUGIN_DIR');
+              fs.writeFileSync('$SETTINGS', JSON.stringify(s, null, 2) + '\\n');
+              console.error('✓ Registered braze-agency with Claude Code');
+            }
+          " 2>&1
+        fi
+      else
+        mkdir -p "$(dirname "$SETTINGS")"
+        echo '{"plugins":["'"$PLUGIN_DIR"'"]}' | "$NODE_BIN" -e "
+          const fs = require('fs');
+          let d = '';
+          process.stdin.on('data', c => d += c);
+          process.stdin.on('end', () => {
+            fs.writeFileSync('$SETTINGS', JSON.stringify(JSON.parse(d), null, 2) + '\\n');
+            console.error('✓ Registered braze-agency with Claude Code');
+          });
+        " 2>&1
+      fi
+
+      export NODE_PATH="$PLUGIN_DIR/node_modules"
+      exec "$NODE_BIN" "$PLUGIN_DIR/bin/cli.mjs" "$@"
     SH
-  end
-
-  def post_install
-    # Register plugin with Claude Code settings.json
-    settings_path = "#{Dir.home}/.claude/settings.json"
-    plugin_path = "#{share}/braze-agency"
-
-    require "json"
-
-    settings = if File.exist?(settings_path)
-      begin
-        JSON.parse(File.read(settings_path))
-      rescue JSON::ParserError
-        {}
-      end
-    else
-      {}
-    end
-
-    settings["plugins"] ||= []
-    unless settings["plugins"].include?(plugin_path)
-      settings["plugins"] << plugin_path
-      FileUtils.mkdir_p(File.dirname(settings_path))
-      File.write(settings_path, JSON.pretty_generate(settings) + "\n")
-      ohai "Registered with Claude Code at #{settings_path}"
-    end
   end
 
   def caveats
     <<~EOS
-      Braze Agency has been registered with Claude Code.
+      Braze Agency is installed. Run any command to auto-register with Claude Code:
+
+        braze-agency status            # Check status + auto-registers
+        braze-agency search "query"    # Search knowledge base
 
       Plugin: #{share}/braze-agency
       Agents: 9 (engineer, architect, strategist, analyst, tester, ...)
       Skills: 166 with 1,304 topic references
 
-      Commands:
-        braze-agency status            # Check registration
-        braze-agency search "query"    # Search knowledge base
-        braze-agency register          # Re-register if needed
-
-      Restart Claude Code to activate.
+      Restart Claude Code after first run to activate.
     EOS
   end
 
   test do
-    assert_match "status", shell_output("#{bin}/braze-agency status")
+    assert_match "braze-agency", shell_output("#{bin}/braze-agency 2>&1", 0)
   end
 end

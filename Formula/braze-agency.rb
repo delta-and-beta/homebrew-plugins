@@ -22,37 +22,13 @@ class BrazeAgency < Formula
                        "skill_index.json", "skill_meta.json",
                        "package.json", "node_modules"
 
-    # Create wrapper script with auto-register + search routing
+    # Create wrapper script
     node_bin = Formula["node"].opt_bin/"node"
     (bin/"braze-agency").write <<~SH
       #!/bin/bash
       PLUGIN_DIR="#{plugin_dir}"
       NODE_BIN="#{node_bin}"
-      SETTINGS="$HOME/.claude/settings.json"
       export NODE_PATH="$PLUGIN_DIR/node_modules"
-
-      # Auto-register with Claude Code on first run
-      if [ -f "$SETTINGS" ]; then
-        if ! grep -q "$PLUGIN_DIR" "$SETTINGS" 2>/dev/null; then
-          "$NODE_BIN" -e "
-            const fs = require('fs');
-            const s = JSON.parse(fs.readFileSync('$SETTINGS', 'utf-8'));
-            s.plugins = s.plugins || [];
-            if (!s.plugins.includes('$PLUGIN_DIR')) {
-              s.plugins.push('$PLUGIN_DIR');
-              fs.writeFileSync('$SETTINGS', JSON.stringify(s, null, 2) + '\\n');
-              console.error('✓ Registered braze-agency with Claude Code');
-            }
-          " 2>&1
-        fi
-      else
-        mkdir -p "$(dirname "$SETTINGS")"
-        "$NODE_BIN" -e "
-          const fs = require('fs');
-          fs.writeFileSync('$SETTINGS', JSON.stringify({plugins:['$PLUGIN_DIR']}, null, 2) + '\\n');
-          console.error('✓ Registered braze-agency with Claude Code');
-        " 2>&1
-      fi
 
       # Route commands
       case "$1" in
@@ -61,17 +37,38 @@ class BrazeAgency < Formula
           exec "$NODE_BIN" "$PLUGIN_DIR/bin/search.mjs" "$@"
           ;;
         register)
-          echo "Already registered (auto-registers on every run)"
-          grep -q "$PLUGIN_DIR" "$SETTINGS" 2>/dev/null && echo "✓ Plugin: $PLUGIN_DIR" || echo "✗ Not in settings"
+          echo "To register braze-agency with Claude Code, run this INSIDE Claude Code:"
+          echo ""
+          echo "  /plugin marketplace add $PLUGIN_DIR"
+          echo "  /plugin install braze@braze-agency"
+          echo ""
+          echo "Or start Claude Code with:"
+          echo ""
+          echo "  claude --plugin-dir $PLUGIN_DIR"
+          echo ""
+          # Also add to settings.json plugins array as fallback
+          SETTINGS="$HOME/.claude/settings.json"
+          if [ -f "$SETTINGS" ]; then
+            if ! grep -q "$PLUGIN_DIR" "$SETTINGS" 2>/dev/null; then
+              "$NODE_BIN" -e "
+                const fs = require('fs');
+                const s = JSON.parse(fs.readFileSync('$SETTINGS', 'utf-8'));
+                s.plugins = s.plugins || [];
+                if (!s.plugins.includes('$PLUGIN_DIR')) {
+                  s.plugins.push('$PLUGIN_DIR');
+                  fs.writeFileSync('$SETTINGS', JSON.stringify(s, null, 2) + '\n');
+                }
+              "
+              echo "✓ Added to settings.json plugins (skills/commands only)"
+              echo "  Run the /plugin commands above for full agent support"
+            else
+              echo "✓ Already in settings.json"
+            fi
+          fi
           ;;
         status)
           echo "braze-agency status:"
           echo ""
-          if grep -q "$PLUGIN_DIR" "$SETTINGS" 2>/dev/null; then
-            echo "  Registered: ✓ yes"
-          else
-            echo "  Registered: ✗ no"
-          fi
           echo "  Plugin:     $PLUGIN_DIR"
           agents=$(ls "$PLUGIN_DIR/agents/"*.md 2>/dev/null | wc -l | tr -d ' ')
           echo "  Agents:     $agents"
@@ -83,6 +80,8 @@ class BrazeAgency < Formula
           else
             echo "  Memory:     ✗ missing"
           fi
+          echo ""
+          echo "  Quick start:  claude --plugin-dir $PLUGIN_DIR"
           ;;
         *)
           echo "braze-agency — Braze specialist agents for Claude Code"
@@ -92,13 +91,16 @@ class BrazeAgency < Formula
           echo "  search \"query\" --topic    Search topics"
           echo "  search --list-skills      List all skills"
           echo "  search --get-topic <id>   Read a topic"
-          echo "  status                    Show registration status"
+          echo "  register                  Register with Claude Code"
+          echo "  status                    Show plugin info"
           echo ""
           echo "Examples:"
           echo "  braze-agency search \"email bounce\" --limit 5"
           echo "  braze-agency search \"push notifications\" --topic"
-          echo "  braze-agency search --list-skills"
-          echo "  braze-agency status"
+          echo "  braze-agency register"
+          echo ""
+          echo "Quick start:"
+          echo "  claude --plugin-dir $PLUGIN_DIR"
           ;;
       esac
     SH
@@ -106,16 +108,17 @@ class BrazeAgency < Formula
 
   def caveats
     <<~EOS
-      Braze Agency is installed. Run any command to auto-register with Claude Code:
+      Braze Agency is installed!
 
-        braze-agency search "query"    # Search knowledge base
-        braze-agency status            # Check registration
+      Quick start (loads agents + skills + commands):
+        claude --plugin-dir #{share}/braze-agency
 
-      Plugin: #{share}/braze-agency
-      Agents: 9 (engineer, architect, strategist, analyst, tester, ...)
-      Skills: 166 with 1,304 topic references
+      Or register permanently inside Claude Code:
+        /plugin marketplace add #{share}/braze-agency
+        /plugin install braze@braze-agency
 
-      Restart Claude Code after first run to activate.
+      Search from terminal:
+        braze-agency search "query"
     EOS
   end
 

@@ -16,7 +16,8 @@ class BrazeAgency < Formula
 
     # Install plugin content to share/
     plugin_dir = share/"braze-agency"
-    plugin_dir.install "agents", "skills", "commands", "bin",
+    plugin_dir.install ".claude-plugin",
+                       "agents", "skills", "commands", "bin",
                        "memory.db", "keywords.txt",
                        "skill_index.json", "skill_meta.json",
                        "package.json", "node_modules"

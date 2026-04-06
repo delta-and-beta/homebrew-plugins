@@ -8,6 +8,9 @@ class BrazeAgency < Formula
   depends_on "node"
 
   def install
+    # Ensure Homebrew's node/npm are used (not nvm/system versions)
+    ENV.prepend_path "PATH", Formula["node"].opt_bin
+
     # Install native dependency (better-sqlite3 for FTS5 search)
     system "npm", "install", "--production", "--ignore-scripts=false"
 
@@ -18,11 +21,12 @@ class BrazeAgency < Formula
                        "skill_index.json", "skill_meta.json",
                        "package.json", "node_modules"
 
-    # Create wrapper script
+    # Create wrapper script that uses Homebrew's node
+    node_bin = Formula["node"].opt_bin/"node"
     (bin/"braze-agency").write <<~SH
       #!/bin/bash
       export NODE_PATH="#{plugin_dir}/node_modules"
-      exec node "#{plugin_dir}/bin/cli.mjs" "$@"
+      exec "#{node_bin}" "#{plugin_dir}/bin/cli.mjs" "$@"
     SH
   end
 
